@@ -120,18 +120,64 @@ class ForumResponseParser {
         message.contains('取消');
   }
 
-  String ajaxMessage(String xml) {
+  /// Returns the raw payload of a phpwind ajax reply, preserving whitespace.
+  ///
+  /// The task endpoint answers `<ajax><![CDATA[fail\t消息]]></ajax>`, so callers
+  /// must read the CDATA payload before splitting it on the tab. Unlike
+  /// [ajaxMessage] this keeps the original whitespace.
+  String ajaxPayload(String xml) {
     final cdata = RegExp(r'<!\[CDATA\[(.*?)\]\]>', dotAll: true)
         .firstMatch(xml)
         ?.group(1);
-    if (cdata != null) return _cleanText(cdata);
+    if (cdata != null) return cdata;
 
     final document = html_parser.parse(xml);
-    final ajax = _cleanText(document.querySelector('ajax')?.text ?? '');
+    final ajax = document.querySelector('ajax')?.text ?? '';
     if (ajax.isNotEmpty) return ajax;
 
-    final text = _cleanText(document.body?.text ?? xml);
-    return text.isEmpty ? '操作失败' : text;
+    return xml;
+  }
+
+  /// Splits a phpwind task ajax reply into its `(status, message)` pair.
+  ///
+  /// Two shapes exist in the wild:
+  ///
+  /// - `<ajax><![CDATA[fail\t您申请过…]]></ajax>` — one CDATA holding a tab
+  ///   separated pair.
+  /// - `<ajax><![CDATA[success]]><![CDATA[奖励领取完成]]></ajax>` — one CDATA per
+  ///   field.
+  ///
+  /// Splitting the raw response on `\t` (as the caller used to do) leaves the
+  /// `<ajax><![CDATA[` prefix glued to the status, so a real `success` never
+  /// compared equal and every task action looked like a failure.
+  ({String status, String message}) taskActionReply(String response) {
+    final payloads = RegExp(r'<!\[CDATA\[(.*?)\]\]>', dotAll: true)
+        .allMatches(response)
+        .map((match) => match.group(1) ?? '')
+        .toList(growable: false);
+
+    if (payloads.length >= 2) {
+      return (
+        status: payloads.first.trim().toLowerCase(),
+        message: _cleanText(payloads.skip(1).join(' ')),
+      );
+    }
+
+    final payload = payloads.isNotEmpty ? payloads.first : ajaxPayload(response);
+    final parts = payload.split('\t');
+    return (
+      status: parts.first.trim().toLowerCase(),
+      message: parts.length > 1 ? _cleanText(parts.skip(1).join(' ')) : '',
+    );
+  }
+
+  String ajaxMessage(String xml) {
+    final text = _cleanText(ajaxPayload(xml));
+    if (text.isNotEmpty) return text;
+
+    final document = html_parser.parse(xml);
+    final body = _cleanText(document.body?.text ?? xml);
+    return body.isEmpty ? '操作失败' : body;
   }
 
   String? loggedInUsername(String html) {

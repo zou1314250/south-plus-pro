@@ -291,10 +291,12 @@ class ForumRepository {
     final response = await _client.get(
       'plugin.php?H_name=tasks&action=ajax&actions=$action&cid=$id',
     );
-    final parts = response.split('\t');
-    final status = parts.first.trim().toLowerCase();
-    final message = parts.length > 1
-        ? _cleanText(parts.skip(1).join(' '))
+    // The reply is wrapped in `<ajax><![CDATA[…]]></ajax>`, so the payload has
+    // to be unwrapped before the tab separated status is read.
+    final reply = _responseParser.taskActionReply(response);
+    final status = reply.status;
+    final message = reply.message.isNotEmpty
+        ? reply.message
         : _responseParser.ajaxMessage(response);
     final success = status == 'success';
     ForumTraceLogger.log(
@@ -690,7 +692,11 @@ class ForumRepository {
     return text.contains('任务已领取') ||
         text.contains('已经领取任务') ||
         text.contains('已申领') ||
-        text.contains('已经申领');
+        text.contains('已经申领') ||
+        text.contains('已申请') ||
+        // "您申请过[日常]还未完成,不需要重新申请!" — the task is already running.
+        text.contains('申请过') ||
+        text.contains('不需要重新申请');
   }
 
   bool _alreadyCompletedTask(String message) {

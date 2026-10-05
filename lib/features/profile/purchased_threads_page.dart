@@ -223,7 +223,7 @@ class _PurchasedThreadTile extends StatelessWidget {
                     color: AppColors.brandSoft,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.lock_open_outlined,
                     size: 17,
                     color: AppColors.brandDark,
@@ -279,7 +279,7 @@ class _PurchasedThreadTile extends StatelessWidget {
                 IconButton(
                   tooltip: '移除记录',
                   onPressed: onRemove,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.close,
                     size: 18,
                     color: AppColors.textFaint,
@@ -315,7 +315,7 @@ class _MetaPill extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: AppColors.textMuted,
