@@ -1072,9 +1072,7 @@ class _ThreadFilterChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 32, maxWidth: 168),
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
@@ -1082,15 +1080,31 @@ class _ThreadFilterChip extends StatelessWidget {
               width: 0.8,
             ),
           ),
-          child: Text(
-            filter.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: selected ? Colors.white : AppColors.link,
-              fontSize: 12.5,
-              height: 1.2,
-              fontWeight: FontWeight.w700,
+          // A `Container` with `alignment` expands to the widest allowed size,
+          // so the old `maxWidth: 168` + `alignment: center` combination made
+          // every tab stretch to 168px and two of them filled the whole row.
+          // Size to the label instead, and centre it inside a fixed-height row.
+          child: SizedBox(
+            height: 32,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 180),
+                  child: Text(
+                    filter.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected ? Colors.white : AppColors.link,
+                      fontSize: 12.5,
+                      height: 1.2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
