@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-const defaultUpdateRepository = 'testkubesail4/south-plus-pro';
+const defaultUpdateRepository = 'zou1314250/south-plus-pro';
 
 typedef ReleaseFetcher = Future<Map<String, Object?>> Function(Uri uri);
 

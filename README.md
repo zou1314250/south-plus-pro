@@ -6,14 +6,14 @@
 把原本偏桌面的论坛体验，整理成更适合手机浏览、回复、收藏和购买付费帖的应用。
 
 <p>
-  <a href="https://github.com/testkubesail4/south-plus-pro/releases/latest">
-    <img alt="最新版本" src="https://img.shields.io/github/v/release/testkubesail4/south-plus-pro?include_prereleases&amp;label=version&amp;style=for-the-badge&amp;color=2563eb">
+  <a href="https://github.com/zou1314250/south-plus-pro/releases/latest">
+    <img alt="最新版本" src="https://img.shields.io/github/v/release/zou1314250/south-plus-pro?include_prereleases&amp;label=version&amp;style=for-the-badge&amp;color=2563eb">
   </a>
-  <a href="https://github.com/testkubesail4/south-plus-pro/releases">
-    <img alt="总下载量" src="https://img.shields.io/github/downloads/testkubesail4/south-plus-pro/total?label=downloads&amp;style=for-the-badge&amp;color=16a34a">
+  <a href="https://github.com/zou1314250/south-plus-pro/releases">
+    <img alt="总下载量" src="https://img.shields.io/github/downloads/zou1314250/south-plus-pro/total?label=downloads&amp;style=for-the-badge&amp;color=16a34a">
   </a>
-  <a href="https://github.com/testkubesail4/south-plus-pro/actions/workflows/release-status.yml">
-    <img alt="发布构建" src="https://img.shields.io/github/actions/workflow/status/testkubesail4/south-plus-pro/release-status.yml?label=release&amp;style=for-the-badge">
+  <a href="https://github.com/zou1314250/south-plus-pro/actions/workflows/release-status.yml">
+    <img alt="发布构建" src="https://img.shields.io/github/actions/workflow/status/zou1314250/south-plus-pro/release-status.yml?label=release&amp;style=for-the-badge">
   </a>
 </p>
 
@@ -26,24 +26,24 @@
 </p>
 
 <p>
-  <a href="https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-android-arm64-v8a.apk">
+  <a href="https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-android-arm64-v8a.apk">
     <img alt="下载 Android ARM64" src="https://img.shields.io/badge/下载-Android%20ARM64%20APK-16a34a?style=for-the-badge&logo=android&logoColor=white">
   </a>
-  <a href="https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-ios.ipa">
+  <a href="https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-ios.ipa">
     <img alt="下载 iOS IPA" src="https://img.shields.io/badge/下载-iOS%20IPA-111827?style=for-the-badge&logo=apple&logoColor=white">
   </a>
-  <a href="https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-android-universal.apk">
+  <a href="https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-android-universal.apk">
     <img alt="下载通用 Android 包" src="https://img.shields.io/badge/下载-Universal%20APK-15803d?style=for-the-badge&logo=android&logoColor=white">
   </a>
-  <a href="https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-windows-x64.zip">
+  <a href="https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-windows-x64.zip">
     <img alt="下载 Windows x64" src="https://img.shields.io/badge/下载-Windows%20x64-0f172a?style=for-the-badge&logo=windows&logoColor=white">
   </a>
 </p>
 
 <p>
-  <a href="https://github.com/testkubesail4/south-plus-pro/releases/latest"><strong>进入下载页面</strong></a>
+  <a href="https://github.com/zou1314250/south-plus-pro/releases/latest"><strong>进入下载页面</strong></a>
   ·
-  <a href="https://github.com/testkubesail4/south-plus-pro/issues">反馈问题</a>
+  <a href="https://github.com/zou1314250/south-plus-pro/issues">反馈问题</a>
   ·
   <a href="https://south-plus.net/index.php">访问南+官网</a>
 </p>
@@ -115,14 +115,14 @@
 
 | 平台 | 推荐下载 | 说明 |
 | --- | --- | --- |
-| Android 大多数手机 | [ARM64 APK](https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-android-arm64-v8a.apk) | 推荐给近几年主流 Android 手机和平板，安装包更小。 |
-| Android 老设备 | [32 位 ARM APK](https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-android-armeabi-v7a.apk) | 适合较老的 32 位 ARM 设备。 |
-| Android 模拟器 | [x86_64 APK](https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-android-x86_64.apk) | 适合 x86_64 Android 模拟器或少见设备。 |
-| Android 通用包 | [Universal APK](https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-android-universal.apk) | 不确定设备架构时使用，体积会更大。 |
-| iPhone / iPad | [iOS IPA](https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-ios.ipa) | sideload IPA，适合 AltStore / SideStore / 爱思助手自签安装。 |
-| Windows | [Windows x64 压缩包](https://github.com/testkubesail4/south-plus-pro/releases/latest/download/south_plus_rewrite-windows-x64.zip) | 解压后运行 `south_plus_rewrite.exe`。 |
-| 校验文件 | [下载 SHA256SUMS](https://github.com/testkubesail4/south-plus-pro/releases/latest/download/SHA256SUMS.txt) | 用来校验安装包是否完整。 |
-| 所有版本 | [打开 Releases 页面](https://github.com/testkubesail4/south-plus-pro/releases/latest) | 查看每个版本的变更说明、全部下载文件和历史版本。 |
+| Android 大多数手机 | [ARM64 APK](https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-android-arm64-v8a.apk) | 推荐给近几年主流 Android 手机和平板，安装包更小。 |
+| Android 老设备 | [32 位 ARM APK](https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-android-armeabi-v7a.apk) | 适合较老的 32 位 ARM 设备。 |
+| Android 模拟器 | [x86_64 APK](https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-android-x86_64.apk) | 适合 x86_64 Android 模拟器或少见设备。 |
+| Android 通用包 | [Universal APK](https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-android-universal.apk) | 不确定设备架构时使用，体积会更大。 |
+| iPhone / iPad | [iOS IPA](https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-ios.ipa) | sideload IPA，适合 AltStore / SideStore / 爱思助手自签安装。 |
+| Windows | [Windows x64 压缩包](https://github.com/zou1314250/south-plus-pro/releases/latest/download/south_plus_rewrite-windows-x64.zip) | 解压后运行 `south_plus_rewrite.exe`。 |
+| 校验文件 | [下载 SHA256SUMS](https://github.com/zou1314250/south-plus-pro/releases/latest/download/SHA256SUMS.txt) | 用来校验安装包是否完整。 |
+| 所有版本 | [打开 Releases 页面](https://github.com/zou1314250/south-plus-pro/releases/latest) | 查看每个版本的变更说明、全部下载文件和历史版本。 |
 
 iOS 版本是给 sideload 用的 IPA，不是 App Store 包。
 

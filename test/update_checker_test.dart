@@ -7,7 +7,7 @@ void main() {
       fetcher: (uri) async {
         expect(
           uri.toString(),
-          'https://api.github.com/repos/testkubesail4/south-plus-pro/releases/latest',
+          'https://api.github.com/repos/zou1314250/south-plus-pro/releases/latest',
         );
         return _releaseJson(tagName: 'v0.1.8');
       },
