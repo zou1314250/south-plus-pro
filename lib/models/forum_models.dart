@@ -352,6 +352,83 @@ class ThreadActionLink {
   final String url;
 }
 
+/// A thread whose paid content the user unlocked with SP币.
+///
+/// The forum has no page listing bought topics (its profile tabs are only
+/// 资料 / 主题 / 回复 / 收藏 / 好友 / 商品), so purchases are remembered on the
+/// device instead.
+class PurchasedThread {
+  const PurchasedThread({
+    required this.tid,
+    required this.title,
+    required this.url,
+    this.pid,
+    this.price,
+    this.purchasedAt,
+  });
+
+  final String tid;
+  final String title;
+  final String url;
+
+  /// `tpc` for the opening post, otherwise the post id of the sold floor.
+  final String? pid;
+  final int? price;
+  final DateTime? purchasedAt;
+
+  Map<String, Object?> toJson() {
+    return {
+      'tid': tid,
+      'title': title,
+      'url': url,
+      if (pid != null) 'pid': pid,
+      if (price != null) 'price': price,
+      if (purchasedAt != null) 'purchasedAt': purchasedAt!.toIso8601String(),
+    };
+  }
+
+  static PurchasedThread? fromJson(Object? value) {
+    if (value is! Map) return null;
+    final tid = '${value['tid'] ?? ''}'.trim();
+    final title = '${value['title'] ?? ''}'.trim();
+    final url = '${value['url'] ?? ''}'.trim();
+    if (tid.isEmpty || title.isEmpty || url.isEmpty) return null;
+    final pid = value['pid'];
+    final price = value['price'];
+    final purchasedAt = value['purchasedAt'];
+    return PurchasedThread(
+      tid: tid,
+      title: title,
+      url: url,
+      pid: pid == null ? null : '$pid',
+      price: price is int ? price : int.tryParse('$price'),
+      purchasedAt:
+          purchasedAt is String ? DateTime.tryParse(purchasedAt) : null,
+    );
+  }
+
+  /// Builds a record from a successful `job.php?action=buytopic` purchase.
+  static PurchasedThread? fromSaleBox({
+    required ThreadSaleBox saleBox,
+    required String title,
+    required String url,
+    DateTime? purchasedAt,
+  }) {
+    final tid = RegExp(r'[?&]tid=(\d+)').firstMatch(saleBox.buyPath)?.group(1);
+    if (tid == null || tid.isEmpty) return null;
+    if (title.trim().isEmpty || url.trim().isEmpty) return null;
+    final pid = RegExp(r'[?&]pid=([^&]+)').firstMatch(saleBox.buyPath)?.group(1);
+    return PurchasedThread(
+      tid: tid,
+      title: title.trim(),
+      url: url.trim(),
+      pid: pid,
+      price: saleBox.price,
+      purchasedAt: purchasedAt ?? DateTime.now(),
+    );
+  }
+}
+
 enum ThreadFavoriteState {
   unknown,
   notFavorite,

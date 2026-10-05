@@ -13,6 +13,7 @@ import '../common/cached_forum_image.dart';
 import 'forum_tasks_screen.dart';
 import 'network_setup_flow_screen.dart';
 import 'network_settings_screen.dart';
+import 'purchased_threads_page.dart';
 import 'user_profile_screen.dart';
 
 class AccountScreen extends StatefulWidget {
@@ -244,6 +245,18 @@ class _AccountScreenState extends State<AccountScreen> {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => ForumTasksScreen(
+                      repository: widget.repository,
+                    ),
+                  ),
+                ),
+              ),
+              _AccountTile(
+                icon: Icons.shopping_bag_outlined,
+                title: '已购买的帖子',
+                subtitle: '查看在本 App 内购买过内容的主题',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PurchasedThreadsPage(
                       repository: widget.repository,
                     ),
                   ),

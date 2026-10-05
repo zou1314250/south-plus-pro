@@ -5,6 +5,7 @@ import '../../models/forum_models.dart';
 import '../../services/external_link_launcher.dart';
 import '../../services/perf_trace.dart';
 import '../../services/forum_repository.dart';
+import '../../services/purchase_history_store.dart';
 import '../../theme/app_theme.dart';
 import '../common/async_state_view.dart';
 import '../common/cached_forum_image.dart';
@@ -31,6 +32,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
   final _scrollController = ScrollController();
   final _replyKey = GlobalKey<ReplyComposerState>();
   final Set<String> _buyingSaleBoxes = <String>{};
+  final PurchaseHistoryStore _purchaseHistory = PurchaseHistoryStore();
   final Set<String> _loadingQuoteDrafts = <String>{};
   final Map<String, ThreadFavoriteState> _favoriteOverrides =
       <String, ThreadFavoriteState>{};
@@ -389,6 +391,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
         ),
       );
       if (result.success) {
+        await _recordPurchase(saleBox);
         await _refresh();
       }
     } catch (error) {
@@ -401,6 +404,25 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
       setState(() {
         _buyingSaleBoxes.remove(saleBox.buyPath);
       });
+    }
+  }
+
+  /// Remembers a successful purchase so 个人中心 can list it later.
+  ///
+  /// The forum has no "bought topics" page, so this is the only place the app
+  /// learns about a purchase. Recording is best-effort: a storage failure must
+  /// never make the purchase flow look broken.
+  Future<void> _recordPurchase(ThreadSaleBox saleBox) async {
+    final entry = PurchasedThread.fromSaleBox(
+      saleBox: saleBox,
+      title: _thread.title,
+      url: _thread.url,
+    );
+    if (entry == null) return;
+    try {
+      await _purchaseHistory.record(entry);
+    } catch (_) {
+      // Ignore: the thread content is already unlocked on the server.
     }
   }
 
