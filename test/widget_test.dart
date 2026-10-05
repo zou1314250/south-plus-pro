@@ -1497,6 +1497,7 @@ class _FakeBoardRepository extends ForumRepository {
   Future<ForumThreadPage> fetchBoardThreadPage(
     ForumCategory category, {
     int page = 1,
+    String? filterUrl,
   }) async {
     requestedCategoryUrls.add(category.url ?? '');
     if (category.url?.contains('fid-218') == true) {
@@ -1634,6 +1635,7 @@ class _FakeHomeRepository extends ForumRepository {
   Future<ForumThreadPage> fetchBoardThreadPage(
     ForumCategory category, {
     int page = 1,
+    String? filterUrl,
   }) async {
     requestedCategoryUrls.add(category.url ?? '');
     return const ForumThreadPage(

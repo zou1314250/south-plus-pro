@@ -125,6 +125,53 @@ class BoardThreadPageParser {
     return ads;
   }
 
+  /// Parses the board topic-classification tabs.
+  ///
+  /// The forum renders them as
+  /// `<li id="thread_type_3"><a class="fn" href="thread.php?fid-128-type-3.html#c">中文音声</a></li>`
+  /// and marks the active tab by running
+  /// `setCurrent('thread_type_3','thread_type_3','current')` after load, so the
+  /// active tab is not visible in the raw markup's classes.
+  List<ForumThreadFilter> parseThreadFilters(dom.Document document) {
+    final items = document.querySelectorAll('li[id^="thread_type_"]');
+    if (items.isEmpty) return const [];
+
+    final currentId = _currentThreadTypeId(document);
+    final filters = <ForumThreadFilter>[];
+    final seen = <String>{};
+    for (final item in items) {
+      final link = item.querySelector('a[href]');
+      if (link == null) continue;
+      final href = link.attributes['href'] ?? '';
+      final label = _cleanText(link.text);
+      if (href.isEmpty || label.isEmpty) continue;
+      final rawId = item.attributes['id'] ?? '';
+      final id = rawId.replaceFirst('thread_type_', '');
+      if (id.isEmpty || !seen.add(id)) continue;
+      filters.add(
+        ForumThreadFilter(
+          id: id,
+          label: label,
+          url: urls.absoluteUrl(href),
+          isCurrent: id == currentId || item.classes.contains('current'),
+        ),
+      );
+    }
+    return filters;
+  }
+
+  String? _currentThreadTypeId(dom.Document document) {
+    for (final script in document.querySelectorAll('script')) {
+      final text = script.text;
+      if (!text.contains('setCurrent')) continue;
+      final matches = RegExp(
+        r"setCurrent\(\s*'thread_type_([^']+)'",
+      ).allMatches(text);
+      if (matches.isNotEmpty) return matches.last.group(1);
+    }
+    return null;
+  }
+
   List<ForumThread> parseSimpleThreads(
     dom.Document document,
     ForumCategory category,

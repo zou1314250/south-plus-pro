@@ -419,7 +419,17 @@ class ThreadDetailParser {
     if (index == -1 || index + 1 >= siblings.length) return null;
     final sibling = siblings[index + 1];
     if (sibling.localName != 'blockquote') return null;
-    return sibling.classes.contains('blockquote') ? sibling : null;
+    // The same slot carries the unlocked payload once a purchase is made, so
+    // only remove it when it really is the purchase-risk warning.
+    return _looksLikePurchaseWarning(sibling.text) ? sibling : null;
+  }
+
+  bool _looksLikePurchaseWarning(String text) {
+    final compact = _cleanText(text);
+    if (compact.isEmpty) return true;
+    return compact.contains('采用欺骗的方法获取财富') ||
+        compact.contains('购买风险') ||
+        (compact.contains('举报') && compact.contains('封'));
   }
 
   String _cleanText(String input) {

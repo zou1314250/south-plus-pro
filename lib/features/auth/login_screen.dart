@@ -412,14 +412,20 @@ class _LoginOptions extends StatelessWidget {
               : null,
         ),
         const SizedBox(height: 8),
-        CheckboxListTile(
-          value: hideLogin,
-          onChanged:
-              enabled ? (value) => onHideLoginChanged(value ?? false) : null,
-          title: const Text('隐身登录'),
-          controlAffinity: ListTileControlAffinity.leading,
-          contentPadding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
+        // The decorated Container wrapping this form would make the
+        // CheckboxListTile report "background color or ink splashes may be
+        // invisible", so give it a transparent Material ancestor of its own.
+        Material(
+          type: MaterialType.transparency,
+          child: CheckboxListTile(
+            value: hideLogin,
+            onChanged:
+                enabled ? (value) => onHideLoginChanged(value ?? false) : null,
+            title: const Text('隐身登录'),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+          ),
         ),
       ],
     );

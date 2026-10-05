@@ -77,6 +77,7 @@ class ForumThreadPage {
     required this.totalPages,
     this.ads = const [],
     this.subBoards = const [],
+    this.filters = const [],
   });
 
   final List<ForumThread> threads;
@@ -85,8 +86,40 @@ class ForumThreadPage {
   final List<ForumBoardAd> ads;
   final List<ForumBoard> subBoards;
 
+  /// Board-level topic-classification filters (thread.php?fid-N-type-M.html).
+  final List<ForumThreadFilter> filters;
+
   bool get hasPrevious => currentPage > 1;
   bool get hasNext => currentPage < totalPages;
+}
+
+/// A board sub-classification tab, e.g. 全部 / 精华 / 同人音声 / 中文音声.
+class ForumThreadFilter {
+  const ForumThreadFilter({
+    required this.id,
+    required this.label,
+    required this.url,
+    this.isCurrent = false,
+  });
+
+  /// Server-side id without the `thread_type_` prefix: `all`, `digest`, `3`, ...
+  final String id;
+  final String label;
+
+  /// Absolute URL of the filtered listing.
+  final String url;
+  final bool isCurrent;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ForumThreadFilter &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          url == other.url;
+
+  @override
+  int get hashCode => Object.hash(id, url);
 }
 
 class ForumBoardAd {

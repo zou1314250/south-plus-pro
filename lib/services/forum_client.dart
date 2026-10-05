@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'forum_body_decoder.dart';
 import 'forum_network_config.dart';
 import 'forum_session_store.dart';
 import 'forum_trace_logger.dart';
@@ -52,7 +52,10 @@ class ForumClient {
     await _storeCookies(response, uri);
     final bodyBytes =
         await response.fold<List<int>>(<int>[], (b, d) => b..addAll(d));
-    final body = utf8.decode(bodyBytes);
+    final body = decodeForumBody(
+      bodyBytes,
+      contentType: response.headers.contentType,
+    );
     final elapsed = DateTime.now().difference(requestStartedAt).inMilliseconds;
     ForumTraceLogger.log(
       'HTTP',
@@ -96,7 +99,10 @@ class ForumClient {
     await _storeCookies(response, uri);
     final bodyBytes =
         await response.fold<List<int>>(<int>[], (b, d) => b..addAll(d));
-    final body = utf8.decode(bodyBytes);
+    final body = decodeForumBody(
+      bodyBytes,
+      contentType: response.headers.contentType,
+    );
     final elapsed = DateTime.now().difference(requestStartedAt).inMilliseconds;
     ForumTraceLogger.log(
       'HTTP',

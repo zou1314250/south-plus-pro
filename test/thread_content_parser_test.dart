@@ -45,7 +45,7 @@ void main() {
           <input type="button"
             onclick="location.href='job.php?action=buytopic&tid=1&pid=1'">
         </h6>
-        <blockquote class="blockquote jumbotron">购买风险提示</blockquote>
+        <blockquote class="blockquote">购买风险提示</blockquote>
         <br>
         <img src="https://example.com/1.webp">
       </div>
@@ -62,6 +62,132 @@ void main() {
     expect(segments[1].saleBox?.warning, '购买风险提示');
     expect(segments[2].type, ThreadContentSegmentType.image);
     expect(segments[2].url, 'https://example.com/1.webp');
+  });
+
+  test('extractInlineSegments renders purchased content after a sale box', () {
+    // Real post-purchase markup captured from the live forum: the
+    // `quote jumbotron` wrapper stays, its buy button is gone, and the unlocked
+    // payload sits in the following blockquote, which gains `jumbotron`. That
+    // payload used to be mistaken for the purchase-risk warning and dropped,
+    // which is why bought posts rendered empty.
+    final fragment = html_parser.parseFragment('''
+      <div class="f14" id="read_tpc">
+        转自某堂<br>
+        <h6 class="quote jumbotron"><span class="s3 f12 fn">此帖售价 0 SP币,已有 5022 人购买</span></h6>
+        <blockquote class="blockquote jumbotron"><br>
+          <img src="https://pics.example.com/preview.gif" border="0"><br>
+          磁力链接：magnet:?xt=urn:btih:1a162df2d5dfefbffccb2448e2aac568ab7ed352
+        </blockquote>
+      </div>
+    ''');
+    final content = fragment.querySelector('.f14')!;
+
+    final segments = ThreadContentParser().extractInlineSegments(content);
+
+    expect(
+      segments
+          .where((segment) => segment.type == ThreadContentSegmentType.saleBox),
+      isEmpty,
+    );
+    final image = segments.firstWhere(
+      (segment) => segment.type == ThreadContentSegmentType.image,
+    );
+    expect(image.url, 'https://pics.example.com/preview.gif');
+    final text = segments
+        .where((segment) => segment.type == ThreadContentSegmentType.text)
+        .map((segment) => segment.text ?? '')
+        .join();
+    expect(text, contains('magnet:?xt=urn:btih:1a162df2'));
+  });
+
+  test('extractInlineSegments renders purchased content without jumbotron', () {
+    // Regression for the reported "bought post shows nothing" bug. The forum
+    // reuses the warning blockquote slot for the unlocked payload, but on some
+    // boards that slot keeps the plain `blockquote` class instead of gaining
+    // `jumbotron`. Detecting the warning by class dropped the payload; it must
+    // be detected by text instead.
+    final fragment = html_parser.parseFragment('''
+      <div class="f14" id="read_tpc">
+        <h6 class="quote jumbotron"><span class="s3 f12 fn">此帖售价 0 SP币,已有 21 人购买</span></h6>
+        <blockquote class="blockquote">百度网盘链接：
+          <a href="https://pan.baidu.com/s/1PNQOTowPxzBCP99kW19B0Q?pwd=h37g">https://pan.baidu.com/s/1PNQOTowPxzBCP99kW19B0Q?pwd=h37g</a>
+          提取码: h37g 解压码: xiaobai77</blockquote>
+      </div>
+    ''');
+    final content = fragment.querySelector('.f14')!;
+
+    final segments = ThreadContentParser().extractInlineSegments(content);
+
+    final link = segments.firstWhere(
+      (segment) => segment.href != null,
+      orElse: () => throw StateError('download link was dropped'),
+    );
+    expect(
+      link.href,
+      'https://pan.baidu.com/s/1PNQOTowPxzBCP99kW19B0Q?pwd=h37g',
+    );
+    final text = segments
+        .where((segment) => segment.type == ThreadContentSegmentType.text)
+        .map((segment) => segment.text ?? '')
+        .join();
+    expect(text, contains('百度网盘链接'));
+    expect(text, contains('xiaobai77'));
+  });
+
+  test('extractInlineSegments does not render the purchased header as a quote',
+      () {
+    // Once purchased the buy button is gone but the price header stays. Its
+    // class list contains `quote`, so it used to be emitted as a stray quote.
+    final fragment = html_parser.parseFragment('''
+      <div class="f14" id="read_tpc">
+        <h6 class="quote jumbotron"><span class="s3 f12 fn">此帖售价 0 SP币,已有 5022 人购买</span></h6>
+        <blockquote class="blockquote jumbotron">磁力链接：magnet:?xt=urn:btih:abc</blockquote>
+      </div>
+    ''');
+    final content = fragment.querySelector('.f14')!;
+
+    final segments = ThreadContentParser().extractInlineSegments(content);
+
+    expect(
+      segments.where((segment) => segment.type == ThreadContentSegmentType.quote),
+      isEmpty,
+    );
+    expect(
+      segments.any((segment) =>
+          (segment.text ?? '').contains('此帖售价')),
+      isFalse,
+    );
+    final text = segments
+        .where((segment) => segment.type == ThreadContentSegmentType.text)
+        .map((segment) => segment.text ?? '')
+        .join();
+    expect(text, contains('magnet:?xt=urn:btih:abc'));
+  });
+
+  test('extractInlineSegments still hides the pre-purchase risk warning', () {
+    // Locked pages emit the warning as a plain `blockquote` (no `jumbotron`).
+    final fragment = html_parser.parseFragment('''
+      <div class="f14">
+        <h6 class="quote jumbotron"><span class="s3">此帖售价 5 SP币,已有 8 人购买</span>
+          <input type="button" onclick="location.href='job.php?action=buytopic&tid=1&pid=tpc'">
+        </h6>
+        <blockquote class="blockquote">购买风险提示</blockquote>
+      </div>
+    ''');
+    final content = fragment.querySelector('.f14')!;
+
+    final segments = ThreadContentParser().extractInlineSegments(content);
+
+    expect(
+      segments
+          .where((segment) => segment.type == ThreadContentSegmentType.saleBox),
+      hasLength(1),
+    );
+    final text = segments
+        .where((segment) => segment.type == ThreadContentSegmentType.text)
+        .map((segment) => segment.text ?? '')
+        .join();
+    expect(text, isNot(contains('购买风险提示')));
   });
 
   test('WhatsLinkPreviewService treats empty api error as success', () {
@@ -138,7 +264,7 @@ void main() {
                       <input type="button"
                         onclick="location.href='job.php?action=buytopic&tid=741222&pid=1'">
                     </h6>
-                    <blockquote class="blockquote jumbotron">购买风险提示</blockquote>
+                    <blockquote class="blockquote">购买风险提示</blockquote>
                     正文 <a href="https://example.com/file.zip">下载</a>
                   </div>
                 </div>
@@ -308,6 +434,53 @@ void main() {
     expect(replies.single.content, contains('正文内容'));
     expect(replies.single.content.indexOf('正文内容'),
         lessThan(replies.single.content.indexOf('图片：')));
+  });
+
+  test('ThreadDetailParser keeps purchased payload when the slot lacks jumbotron',
+      () {
+    // End-to-end regression: a bought post whose unlocked blockquote keeps the
+    // plain `blockquote` class must still surface its download link.
+    final document = html_parser.parse('''
+      <html>
+        <body>
+          <table class="js-post">
+            <tr class="tr1">
+              <th class="r_two" rowspan="2">
+                <a href="u.php?action-show-uid-999.html"><strong>Seller</strong></a>
+              </th>
+              <th class="r_one" id="td_tpc">
+                <div class="tiptop">
+                  <span class="fl"><a class="s3">GF</a></span>
+                  <span class="fl gray" title="发表于: 2026-08-04 00:18">2026-08-04 00:18</span>
+                </div>
+                <div class="tpc_content">
+                  <div class="f14" id="read_tpc">
+                    <h6 class="quote jumbotron"><span class="s3 f12 fn">此帖售价 0 SP币,已有 21 人购买</span></h6>
+                    <blockquote class="blockquote">百度网盘链接：
+                      <a href="https://pan.baidu.com/s/1PNQOTowPxzBCP99kW19B0Q?pwd=h37g">https://pan.baidu.com/s/1PNQOTowPxzBCP99kW19B0Q?pwd=h37g</a>
+                      提取码: h37g</blockquote>
+                    游戏介绍：正文内容
+                  </div>
+                </div>
+              </th>
+            </tr>
+          </table>
+        </body>
+      </html>
+    ''');
+
+    final replies = ThreadDetailParser().desktopThreadCards(document);
+
+    expect(replies, hasLength(1));
+    expect(replies.single.saleBoxes, isEmpty);
+    expect(
+      replies.single.links.map((link) => link.url),
+      contains('https://pan.baidu.com/s/1PNQOTowPxzBCP99kW19B0Q?pwd=h37g'),
+    );
+    expect(replies.single.content, contains('百度网盘链接'));
+    expect(replies.single.content, contains('游戏介绍'));
+    expect(replies.single.content, isNot(contains('采用欺骗')));
+    expect(replies.single.quote, isNull);
   });
 
   test('UserProfileParser strips honor scripts and extracts online status', () {

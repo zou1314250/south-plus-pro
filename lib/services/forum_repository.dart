@@ -306,8 +306,8 @@ class ForumRepository {
       message: message.isEmpty
           ? success
               ? expectation == _ForumTaskActionExpectation.claimReward
-                    ? '任务奖励领取完成'
-                    : '任务领取完成'
+                  ? '任务奖励领取完成'
+                  : '任务领取完成'
               : '任务操作失败'
           : message,
     );
@@ -553,7 +553,8 @@ class ForumRepository {
     required List<ForumTaskClaimItem> claimedRewards,
     required List<String> failures,
   }) async {
-    ForumTraceLogger.log('Reward', '_claimTaskReward task=${_describeTask(task)}');
+    ForumTraceLogger.log(
+        'Reward', '_claimTaskReward task=${_describeTask(task)}');
     final claimedNames = claimedRewards.map((item) => item.name).toSet();
     if (claimedNames.contains(task.name)) {
       ForumTraceLogger.log(
@@ -1037,48 +1038,69 @@ class ForumRepository {
   Future<ForumThreadPage> fetchBoardThreadPage(
     ForumCategory category, {
     int page = 1,
+    String? filterUrl,
   }) async {
     final normalizedPage = page < 1 ? 1 : page;
-    final desktopPath = _urls.boardDesktopPath(category, page: normalizedPage);
-    if (desktopPath == null) {
-      throw ForumRepositoryException('没有解析到${category.name}帖子列表');
+    final String path;
+    if (filterUrl != null && filterUrl.trim().isNotEmpty) {
+      // A board sub-classification (thread.php?fid-N-type-M.html) returns the
+      // classic table layout, so paging keeps the filter token intact.
+      path = _urls.boardFilterPath(filterUrl, page: normalizedPage);
+    } else {
+      final desktopPath =
+          _urls.boardDesktopPath(category, page: normalizedPage);
+      if (desktopPath == null) {
+        throw ForumRepositoryException('没有解析到${category.name}帖子列表');
+      }
+      path = desktopPath;
     }
-    final desktopHtml = await _client.get(desktopPath);
-    final desktopDocument = html_parser.parse(desktopHtml);
+
+    final html = await _client.get(path);
+    final document = html_parser.parse(html);
+    final filters = _boardThreadPageParser.parseThreadFilters(document);
     final subBoards = _boardThreadPageParser.parseDesktopSubBoards(
-      desktopDocument,
+      document,
       category,
     );
     // thread_new.php uses the wall stream for ordinary topics, while the table
     // above it still carries board-level sticky topics and ads. Do not parse the
     // whole table as threads, because it also contains broader sticky levels
-    // that simple mode intentionally hides.
-    final threads = _mergeThreadNewThreads(
-      _boardThreadPageParser.parseDesktopStickyThreads(
-        desktopDocument,
-        category,
-      ),
-      _boardThreadPageParser.parseWallThreads(desktopDocument, category),
+    // that simple mode intentionally hides. Filtered listings fall back to the
+    // classic table when no wall stream is present.
+    final wallThreads = _mergeThreadNewThreads(
+      _boardThreadPageParser.parseDesktopStickyThreads(document, category),
+      _boardThreadPageParser.parseWallThreads(document, category),
     );
+    // A filtered listing (thread.php?fid-N-type-M.html) renders the classic
+    // table instead of the wall stream, so only there do we fall back to it.
+    // Ordinary board pages must keep the wall-only behaviour: their table also
+    // carries broader sticky levels and notices that simple mode hides on
+    // purpose.
+    final threads = wallThreads.isEmpty && filterUrl != null
+        ? _boardThreadPageParser.parseDesktopThreads(document, category)
+        : wallThreads;
     if (threads.isNotEmpty) {
-      final pages = _boardThreadPageParser.wallPages(desktopDocument) ??
+      final pages = _boardThreadPageParser.wallPages(document) ??
+          _boardThreadPageParser.simplePages(document) ??
           (current: normalizedPage, total: normalizedPage);
       return ForumThreadPage(
         threads: threads,
         currentPage: pages.current,
         totalPages: pages.total,
-        ads: _boardThreadPageParser.parseDesktopAds(desktopDocument),
+        ads: _boardThreadPageParser.parseDesktopAds(document),
         subBoards: subBoards,
+        filters: filters,
       );
     }
 
-    if (subBoards.isNotEmpty) {
+    if (subBoards.isNotEmpty || filters.isNotEmpty) {
       return ForumThreadPage(
         threads: const [],
         currentPage: normalizedPage,
         totalPages: normalizedPage,
-        ads: _boardThreadPageParser.parseDesktopAds(desktopDocument),
+        ads: _boardThreadPageParser.parseDesktopAds(document),
         subBoards: subBoards,
+        filters: filters,
       );
     }
 

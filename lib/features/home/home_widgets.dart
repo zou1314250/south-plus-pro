@@ -484,24 +484,31 @@ class _ForumGroup extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: AppColors.border),
           ),
-          child: ExpansionTile(
-            initiallyExpanded: initiallyExpanded,
-            tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-            childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            collapsedIconColor: AppColors.brand,
-            iconColor: AppColors.brand,
-            leading: icon == null
-                ? null
-                : Icon(icon, color: AppColors.brand, size: 20),
-            title: Text(
-              title,
-              style: TextStyle(
-                color: AppColors.text,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
+          // ExpansionTile builds its header from a ListTile. The decorated
+          // Container above would make ListTile report "background color or ink
+          // splashes may be invisible", so give it a Material ancestor of its
+          // own (transparent, so the Container's decoration still shows).
+          child: Material(
+            type: MaterialType.transparency,
+            child: ExpansionTile(
+              initiallyExpanded: initiallyExpanded,
+              tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+              childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              collapsedIconColor: AppColors.brand,
+              iconColor: AppColors.brand,
+              leading: icon == null
+                  ? null
+                  : Icon(icon, color: AppColors.brand, size: 20),
+              title: Text(
+                title,
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
+              children: children,
             ),
-            children: children,
           ),
         ),
       ),

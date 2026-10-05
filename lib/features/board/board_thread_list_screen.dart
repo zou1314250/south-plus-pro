@@ -38,6 +38,7 @@ class _BoardThreadListScreenState extends State<BoardThreadListScreen> {
   final ScrollController _scrollController = ScrollController();
   late ForumCategory _category = widget.category;
   late List<ForumBoard> _knownSubBoards = List.of(widget.initialSubBoards);
+  ForumThreadFilter? _activeFilter;
   int _page = 1;
 
   @override
@@ -50,9 +51,13 @@ class _BoardThreadListScreenState extends State<BoardThreadListScreen> {
     final threadPage = await widget.repository.fetchBoardThreadPage(
       _category,
       page: page,
+      filterUrl: _activeFilter?.url,
     );
     _rememberSubBoards(threadPage);
-    final defaultSubBoard = _defaultContentSubBoard(threadPage);
+    // A filter narrows the board on purpose, so never auto-jump into a child
+    // board while one is selected.
+    final defaultSubBoard =
+        _activeFilter == null ? _defaultContentSubBoard(threadPage) : null;
     if (defaultSubBoard != null) {
       final nextCategory = ForumCategory(
         name: defaultSubBoard.name,
@@ -105,6 +110,23 @@ class _BoardThreadListScreenState extends State<BoardThreadListScreen> {
     await _future;
   }
 
+  Future<void> _selectFilter(ForumThreadFilter filter) async {
+    final nextFilter = filter.id == 'all' ? null : filter;
+    if (_activeFilter?.id == nextFilter?.id) return;
+    setState(() {
+      _activeFilter = nextFilter;
+      _page = 1;
+      _future = _fetchPage(1);
+    });
+    await _future;
+    if (!mounted || !_scrollController.hasClients) return;
+    await _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   Future<void> _goToPage(int page) async {
     if (page == _page || page < 1) return;
     setState(() {
@@ -142,6 +164,8 @@ class _BoardThreadListScreenState extends State<BoardThreadListScreen> {
         url: board.url,
       );
       _knownSubBoards = List.of(board.children);
+      // Classification tabs belong to the previous board.
+      _activeFilter = null;
       _page = 1;
       _future = _fetchPage(_page);
     });
@@ -210,11 +234,14 @@ class _BoardThreadListScreenState extends State<BoardThreadListScreen> {
                         if (_page != page.currentPage) {
                           _page = page.currentPage;
                         }
+                        final filters = page.filters;
+                        final hasFilters = filters.isNotEmpty;
                         final hasSubBoards = subBoards.isNotEmpty;
                         final showSubBoardOnlyHint =
                             items.isEmpty && hasSubBoards;
                         final listItemCount = items.length +
                             1 +
+                            (hasFilters ? 1 : 0) +
                             (hasSubBoards ? 1 : 0) +
                             (showSubBoardOnlyHint ? 1 : 0);
                         return RefreshIndicator(
@@ -228,26 +255,39 @@ class _BoardThreadListScreenState extends State<BoardThreadListScreen> {
                             separatorBuilder: (_, __) =>
                                 const SizedBox.shrink(),
                             itemBuilder: (context, index) {
-                              if (hasSubBoards && index == 0) {
-                                return _SubBoardPanel(
-                                  boards: subBoards,
-                                  onBoardTap: _openSubBoard,
-                                );
+                              var cursor = index;
+                              if (hasFilters) {
+                                if (cursor == 0) {
+                                  return _ThreadFilterBar(
+                                    filters: filters,
+                                    activeId: _activeFilter?.id ?? 'all',
+                                    onSelect: _selectFilter,
+                                  );
+                                }
+                                cursor -= 1;
                               }
-
-                              final itemIndex = index - (hasSubBoards ? 1 : 0);
-                              if (showSubBoardOnlyHint && itemIndex == 0) {
-                                return const _SubBoardOnlyHint();
+                              if (hasSubBoards) {
+                                if (cursor == 0) {
+                                  return _SubBoardPanel(
+                                    boards: subBoards,
+                                    onBoardTap: _openSubBoard,
+                                  );
+                                }
+                                cursor -= 1;
                               }
-                              final adjustedItemIndex =
-                                  itemIndex - (showSubBoardOnlyHint ? 1 : 0);
-                              if (adjustedItemIndex == items.length) {
+                              if (showSubBoardOnlyHint) {
+                                if (cursor == 0) {
+                                  return const _SubBoardOnlyHint();
+                                }
+                                cursor -= 1;
+                              }
+                              if (cursor == items.length) {
                                 return _PaginationBar(
                                   page: page,
                                   onPageSelected: _goToPage,
                                 );
                               }
-                              final item = items[adjustedItemIndex];
+                              final item = items[cursor];
                               return switch (item) {
                                 _BoardAdItem(:final ad) => _BoardAdBanner(
                                     ad: ad,

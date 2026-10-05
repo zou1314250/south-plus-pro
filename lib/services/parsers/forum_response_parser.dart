@@ -1,15 +1,53 @@
 import 'package:html/parser.dart' as html_parser;
+import 'package:meta/meta.dart';
 
 class ForumResponseParser {
   const ForumResponseParser();
 
+  /// " - powered by ..." tail, e.g. `- powered by Pu!mdHd` / `- Powered by Discuz`.
+  static final RegExp _poweredBySuffix = RegExp(
+    r'\s*[-–—|·]\s*powered\s*by\b.*$',
+    caseSensitive: false,
+  );
+
+  /// Site-brand tail, e.g. ` - 南+ South Plus ...` / ` - South Plus Forum`.
+  ///
+  /// Uses a lookahead instead of `\b`: `南+` ends with a non-word character, so
+  /// a word boundary would never match right after it.
+  static final RegExp _brandSuffix = RegExp(
+    r'\s*[-–—|·]\s*(?:南\+|south\s*plus)(?![A-Za-z0-9]).*$',
+    caseSensitive: false,
+  );
+
+  /// A title that is nothing but the site name carries no message.
+  static final RegExp _brandOnly = RegExp(
+    r'^(南\+|southplus|南\+southplus)$',
+    caseSensitive: false,
+  );
+
+  /// Reduces a page title to the part that actually carries information.
+  ///
+  /// Returns an empty string when the title is only site branding, so callers
+  /// fall through to reading the page body instead of showing an empty
+  /// message. Matching is structural so a forum rebrand does not break it.
+  @visibleForTesting
+  String stripSiteBranding(String title) {
+    var result = title
+        .replaceFirst(_poweredBySuffix, '')
+        .replaceFirst(_brandSuffix, '')
+        .trim();
+    final compact = result.replaceAll(RegExp(r'[\s\-–—|·]+'), '');
+    if (_brandOnly.hasMatch(compact)) return '';
+    return result;
+  }
+
   String pageMessage(String html) {
     final document = html_parser.parse(html);
-    final title = _cleanText(document.querySelector('title')?.text ?? '');
+    final title = stripSiteBranding(
+      _cleanText(document.querySelector('title')?.text ?? ''),
+    );
     if (title.isNotEmpty) {
-      return title
-          .replaceFirst(' - 南+ South Plus - powered by Pu!mdHd', '')
-          .trim();
+      return title;
     }
 
     final text = _cleanText(document.body?.text ?? '');

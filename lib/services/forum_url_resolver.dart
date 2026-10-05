@@ -90,6 +90,33 @@ class ForumUrlResolver {
     return 'thread_new.php?fid-$fid-page-$normalizedPage.html';
   }
 
+  /// Builds the path for a board sub-classification listing.
+  ///
+  /// Filter hrefs look like `thread.php?fid-128-type-3.html`. Paging keeps the
+  /// same shape with `-page-N` inserted before `.html`, matching the forum's own
+  /// `fid-128-type-3-page-2.html` pattern.
+  String boardFilterPath(String url, {int page = 1}) {
+    final path = relativePath(url);
+    final normalizedPage = _normalizedPage(page);
+    if (normalizedPage <= 1) return path;
+
+    final existingPage = RegExp(r'-page-\d+(\.html.*)$');
+    if (existingPage.hasMatch(path)) {
+      return path.replaceFirstMapped(
+        existingPage,
+        (match) => '-page-$normalizedPage${match.group(1)}',
+      );
+    }
+
+    final htmlIndex = path.indexOf('.html');
+    if (htmlIndex == -1) {
+      final separator = path.contains('?') ? '&' : '?';
+      return '$path${separator}page=$normalizedPage';
+    }
+    return '${path.substring(0, htmlIndex)}-page-$normalizedPage'
+        '${path.substring(htmlIndex)}';
+  }
+
   String boardSimplePath(ForumCategory category, {int page = 1}) {
     final normalizedPage = _normalizedPage(page);
     final href = category.url;

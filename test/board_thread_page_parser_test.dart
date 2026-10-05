@@ -339,4 +339,43 @@ void main() {
     expect(pages!.current, 1);
     expect(pages.total, 12);
   });
+
+  test('parseThreadFilters reads the board classification tabs', () {
+    final document = html_parser.parse('''
+      <html><body>
+        <div class="hthread"><ul class="fl threadlist">
+          <li id="thread_type_all"><a class="fn" href="thread.php?fid-128.html#c">全部</a></li>
+          <span id="t_typedb">
+            <li id="thread_type_digest"><a class="fn" href="thread.php?fid-128-search-digest.html#c">精华</a></li>
+            <li id="thread_type_1"><a class="fn" href="thread.php?fid-128-type-1.html#c">同人音声</a></li>
+            <li id="thread_type_3"><a class="fn" href="thread.php?fid-128-type-3.html#c">中文音声</a></li>
+          </span>
+        </ul></div>
+        <script language="javascript">
+          setCurrent('h_thread','h_index','current');
+          setCurrent('thread_type_3','thread_type_3','current');
+        </script>
+      </body></html>
+    ''');
+
+    final filters = BoardThreadPageParser().parseThreadFilters(document);
+
+    expect(filters.map((filter) => filter.id).toList(),
+        ['all', 'digest', '1', '3']);
+    expect(filters.map((filter) => filter.label).toList(),
+        ['全部', '精华', '同人音声', '中文音声']);
+    expect(filters.firstWhere((filter) => filter.id == '3').isCurrent, isTrue);
+    expect(
+        filters.firstWhere((filter) => filter.id == 'all').isCurrent, isFalse);
+    expect(
+      filters.firstWhere((filter) => filter.id == '3').url,
+      'https://south-plus.net/thread.php?fid-128-type-3.html#c',
+    );
+  });
+
+  test('parseThreadFilters returns nothing when the board has no tabs', () {
+    final document =
+        html_parser.parse('<html><body><div>没有分类</div></body></html>');
+    expect(BoardThreadPageParser().parseThreadFilters(document), isEmpty);
+  });
 }

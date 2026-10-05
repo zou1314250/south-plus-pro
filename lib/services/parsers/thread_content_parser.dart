@@ -50,11 +50,37 @@ class ThreadContentParser {
         final saleBox = _saleBoxFromElement(node);
         if (saleBox != null) {
           segments.add(ThreadContentSegment.saleBox(saleBox));
+          // A locked sale box has nothing else worth rendering.
+          return;
+        }
+        // No usable buy link. When the buy button is gone the post has already
+        // been purchased, so this header is only the "此帖售价 … 已有 N 人购买"
+        // line: it is not content and must not fall through to the quote branch
+        // below (its class list contains `quote`), which used to render it as a
+        // stray quote. If a buy button is still present the markup simply
+        // changed, so keep the header text instead of dropping it silently.
+        if (node.querySelector('input[type="button"]') != null) {
+          for (final child in node.nodes) {
+            walk(child);
+          }
         }
         return;
       }
       if (_isSaleWarningElement(node)) {
         flushText();
+        return;
+      }
+      if (_isSaleUnlockedContentElement(node)) {
+        // The forum reuses the very blockquote slot that held the
+        // purchase-risk warning for the payload unlocked by a purchase.
+        // Whether that slot carries the `jumbotron` marker depends on the board
+        // template, so the warning is identified by its own text instead of by
+        // class; anything else in that slot is purchased content and must be
+        // rendered inline rather than dropped as a warning.
+        flushText();
+        for (final child in node.nodes) {
+          walk(child);
+        }
         return;
       }
       if (node.localName == 'blockquote' ||
@@ -116,10 +142,16 @@ class ThreadContentParser {
   }
 
   String? extractQuote(dom.Element content) {
-    final quoteElement = content.querySelector('blockquote') ??
-        content.querySelector('.blockquote');
-    if (quoteElement == null) return null;
-    final quote = _cleanText(quoteElement.text);
+    // The blockquote slot used by a sale box is content or a warning, never a
+    // real quote, so it must not be reported as the reply's quote.
+    for (final candidate in content.querySelectorAll('blockquote')) {
+      if (_isSaleFollowUpElement(candidate)) continue;
+      final quote = _cleanText(candidate.text);
+      return quote.isEmpty ? null : quote;
+    }
+    final classed = content.querySelector('.blockquote');
+    if (classed == null || _isSaleFollowUpElement(classed)) return null;
+    final quote = _cleanText(classed.text);
     return quote.isEmpty ? null : quote;
   }
 
@@ -227,16 +259,48 @@ class ThreadContentParser {
     if (index == -1 || index + 1 >= siblings.length) return null;
     final sibling = siblings[index + 1];
     if (sibling.localName != 'blockquote') return null;
-    return sibling.classes.contains('blockquote') ? sibling : null;
+    return _looksLikePurchaseWarning(sibling.text) ? sibling : null;
   }
 
-  bool _isSaleWarningElement(dom.Element element) {
-    if (element.localName != 'blockquote' ||
-        !element.classes.contains('blockquote')) {
-      return false;
-    }
+  /// True for the blockquote slot that directly follows a sale box.
+  ///
+  /// The forum reuses this one slot for two different things: the purchase-risk
+  /// warning while the post is locked, and the payload unlocked by a purchase
+  /// afterwards.
+  bool _isSaleFollowUpElement(dom.Element element) {
+    if (element.localName != 'blockquote') return false;
     final previous = element.previousElementSibling;
     return previous != null && _isSaleBoxElement(previous);
+  }
+
+  /// True for the purchase-risk warning that follows a locked sale box.
+  ///
+  /// Class alone cannot separate the warning from purchased content: locked
+  /// pages emit `class="blockquote"`, but the unlocked payload does not always
+  /// gain `jumbotron` (it depends on the board/template), so a class check
+  /// dropped purchased content as if it were the warning. The warning is
+  /// recognised by its own text instead.
+  bool _isSaleWarningElement(dom.Element element) {
+    if (!_isSaleFollowUpElement(element)) return false;
+    if (element.classes.contains('jumbotron')) return false;
+    return _looksLikePurchaseWarning(element.text);
+  }
+
+  /// True for the blockquote slot that holds content unlocked by a purchase.
+  bool _isSaleUnlockedContentElement(dom.Element element) {
+    return _isSaleFollowUpElement(element) && !_isSaleWarningElement(element);
+  }
+
+  /// True when [text] is the forum's own purchase-risk warning.
+  ///
+  /// The standard wording is "若发现会员采用欺骗的方法获取财富,请立刻举报…".
+  /// An empty slot also carries no payload, so it is safe to drop.
+  bool _looksLikePurchaseWarning(String text) {
+    final compact = _cleanText(text);
+    if (compact.isEmpty) return true;
+    return compact.contains('采用欺骗的方法获取财富') ||
+        compact.contains('购买风险') ||
+        (compact.contains('举报') && compact.contains('封'));
   }
 
   String _cleanText(String input) {

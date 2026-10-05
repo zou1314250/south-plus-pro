@@ -1007,3 +1007,94 @@ class _ThreadPreviewError extends StatelessWidget {
     );
   }
 }
+
+/// Horizontal tab strip for board topic classifications.
+///
+/// Mirrors the forum's own `thread_type_*` row: 全部 / 精华 / per-board types
+/// such as 同人音声 or 中文音声.
+class _ThreadFilterBar extends StatelessWidget {
+  const _ThreadFilterBar({
+    required this.filters,
+    required this.activeId,
+    required this.onSelect,
+  });
+
+  final List<ForumThreadFilter> filters;
+  final String activeId;
+  final ValueChanged<ForumThreadFilter> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: SizedBox(
+        height: 48,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: filters.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final filter = filters[index];
+            return _ThreadFilterChip(
+              filter: filter,
+              selected: filter.id == activeId,
+              onTap: () => onSelect(filter),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ThreadFilterChip extends StatelessWidget {
+  const _ThreadFilterChip({
+    required this.filter,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ForumThreadFilter filter;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.brand : AppColors.inkSoft,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 32, maxWidth: 168),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? AppColors.brand : AppColors.border,
+              width: 0.8,
+            ),
+          ),
+          child: Text(
+            filter.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.link,
+              fontSize: 12.5,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
