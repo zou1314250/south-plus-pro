@@ -8,6 +8,7 @@ import '../../services/forum_repository.dart';
 import '../../theme/app_theme.dart';
 import '../common/async_state_view.dart';
 import '../common/cached_forum_image.dart';
+import '../common/pagination_bar.dart';
 import '../profile/user_profile_screen.dart';
 import 'thread_preview_image_layout.dart';
 import '../thread/thread_detail_screen.dart';
@@ -282,7 +283,7 @@ class _BoardThreadListScreenState extends State<BoardThreadListScreen> {
                                 cursor -= 1;
                               }
                               if (cursor == items.length) {
-                                return _PaginationBar(
+                                return ThreadPaginationBar(
                                   page: page,
                                   onPageSelected: _goToPage,
                                 );

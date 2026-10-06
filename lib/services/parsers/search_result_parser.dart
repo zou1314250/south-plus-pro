@@ -3,11 +3,71 @@ import 'package:html/dom.dart' as dom;
 import '../../models/forum_models.dart';
 import '../forum_url_resolver.dart';
 
+/// A parsed search result page: the visible threads plus its pagination.
+class SearchResultPage {
+  const SearchResultPage({
+    required this.threads,
+    required this.currentPage,
+    required this.totalPages,
+    this.pageHrefs = const {},
+  });
+
+  final List<ForumThread> threads;
+  final int currentPage;
+  final int totalPages;
+
+  /// Page number -> href, taken straight from the page markup.
+  ///
+  /// phpwind search paging carries a session bound `searchid`, so the only
+  /// reliable way to reach page N is to follow the link the result page itself
+  /// printed rather than guessing the query shape.
+  final Map<int, String> pageHrefs;
+}
+
 class SearchResultParser {
   SearchResultParser({ForumUrlResolver? urls})
       : urls = urls ?? ForumUrlResolver();
 
   final ForumUrlResolver urls;
+
+  /// Parses threads together with the pagination projection.
+  SearchResultPage parsePage(dom.Document document) {
+    final hrefs = <int, String>{};
+    for (final link in document.querySelectorAll('a[href]')) {
+      final href = link.attributes['href'] ?? '';
+      if (!href.contains('search.php')) continue;
+      final match = RegExp(r'[?&]page=(\d+)').firstMatch(href);
+      if (match == null) continue;
+      final page = int.tryParse(match.group(1)!);
+      if (page == null || page < 1) continue;
+      hrefs.putIfAbsent(page, () => href);
+    }
+
+    var current = 1;
+    var total = hrefs.isEmpty ? 1 : hrefs.keys.reduce((a, b) => a > b ? a : b);
+    final pageText = _cleanText(document.body?.text ?? '');
+    final pages = RegExp(r'Pages:\s*(\d+)\s*/\s*(\d+)').firstMatch(pageText);
+    if (pages != null) {
+      current = int.tryParse(pages.group(1)!) ?? current;
+      total = int.tryParse(pages.group(2)!) ?? total;
+    } else {
+      final active = _cleanText(
+        document.querySelector('.pages b')?.text ??
+            document.querySelector('.pages .current')?.text ??
+            document.querySelector('.pagination .active')?.text ??
+            '',
+      );
+      current = int.tryParse(active) ?? current;
+    }
+    if (total < current) total = current;
+
+    return SearchResultPage(
+      threads: parse(document),
+      currentPage: current,
+      totalPages: total,
+      pageHrefs: hrefs,
+    );
+  }
 
   List<ForumThread> parse(dom.Document document) {
     final threads = <ForumThread>[];

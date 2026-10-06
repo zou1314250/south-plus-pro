@@ -4,6 +4,7 @@ import '../../models/forum_models.dart';
 import '../../services/forum_repository.dart';
 import '../../theme/app_theme.dart';
 import '../common/async_state_view.dart';
+import '../common/pagination_bar.dart';
 import '../thread/thread_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -17,13 +18,16 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _keyword = TextEditingController();
-  Future<List<ForumThread>>? _future;
+  final _scrollController = ScrollController();
+  Future<ForumThreadPage>? _future;
   String? _error;
   String _lastQuery = '';
+  int _page = 1;
 
   @override
   void dispose() {
     _keyword.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -40,8 +44,41 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _error = null;
       _lastQuery = query;
+      _page = 1;
       _future = widget.repository.searchThreads(query);
     });
+  }
+
+  /// phpwind search results are session bound, so a stale page link can expire
+  /// while the user is paging. Fall back to the last good page instead of
+  /// leaving the screen on an error.
+  Future<void> _goToPage(int target) async {
+    if (target == _page || target < 1) return;
+    final fallback = _future;
+    final fallbackPage = _page;
+    setState(() {
+      _page = target;
+      _future = widget.repository.searchThreads(_lastQuery, page: target);
+    });
+    try {
+      await _future;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _page = fallbackPage;
+        _future = fallback;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('翻页失败，请重新搜索')),
+      );
+      return;
+    }
+    if (!mounted || !_scrollController.hasClients) return;
+    await _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -102,7 +139,7 @@ class _SearchScreenState extends State<SearchScreen> {
             Expanded(
               child: future == null
                   ? const _SearchIntro()
-                  : FutureBuilder<List<ForumThread>>(
+                  : FutureBuilder<ForumThreadPage>(
                       future: future,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
@@ -115,17 +152,24 @@ class _SearchScreenState extends State<SearchScreen> {
                         if (!snapshot.hasData) {
                           return const ThreadListSkeleton(itemCount: 5);
                         }
-                        final results = snapshot.data!;
-                        if (results.isEmpty) {
+                        final page = snapshot.data!;
+                        if (page.threads.isEmpty) {
                           return _EmptySearchResult(query: _lastQuery);
                         }
                         return ListView.separated(
+                          controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                          itemCount: results.length,
+                          itemCount: page.threads.length + 1,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 10),
                           itemBuilder: (context, index) {
-                            final thread = results[index];
+                            if (index == page.threads.length) {
+                              return ThreadPaginationBar(
+                                page: page,
+                                onPageSelected: _goToPage,
+                              );
+                            }
+                            final thread = page.threads[index];
                             return _SearchResultTile(
                               thread: thread,
                               onTap: () => Navigator.of(context).push(

@@ -1009,9 +1009,34 @@ class ForumRepository {
     return home.sections;
   }
 
-  Future<List<ForumThread>> searchThreads(String keyword) async {
+  /// Page hrefs of the most recent search, keyed by page number.
+  ///
+  /// phpwind search paging carries a session bound `searchid`, so page N is
+  /// reached by following the link the result page printed.
+  final Map<int, String> _searchPageHrefs = <int, String>{};
+  String _searchKeyword = '';
+
+  Future<ForumThreadPage> searchThreads(String keyword, {int page = 1}) async {
     final query = keyword.trim();
-    if (query.isEmpty) return const [];
+    if (query.isEmpty) {
+      return const ForumThreadPage(threads: [], currentPage: 1, totalPages: 1);
+    }
+
+    if (page > 1) {
+      final href = query == _searchKeyword ? _searchPageHrefs[page] : null;
+      if (href == null) {
+        throw const ForumRepositoryException('这一页的搜索链接已失效，请重新搜索');
+      }
+      final document = html_parser.parse(
+        await _client.get(_urls.relativePath(_urls.absoluteUrl(href))),
+      );
+      final result = _searchResultParser.parsePage(document);
+      return ForumThreadPage(
+        threads: result.threads,
+        currentPage: page,
+        totalPages: result.totalPages < page ? page : result.totalPages,
+      );
+    }
 
     final searchPage = html_parser.parse(await _client.get('search.php'));
     final form = searchPage.querySelector('form[action*="search.php"]') ??
@@ -1034,7 +1059,16 @@ class ForumRepository {
     final action = form.attributes['action'] ?? 'search.php?';
     final response = await _client.post(
         _urls.relativePath(_urls.absoluteUrl(action)), fields);
-    return _searchResultParser.parse(html_parser.parse(response));
+    final result = _searchResultParser.parsePage(html_parser.parse(response));
+    _searchKeyword = query;
+    _searchPageHrefs
+      ..clear()
+      ..addAll(result.pageHrefs);
+    return ForumThreadPage(
+      threads: result.threads,
+      currentPage: result.currentPage,
+      totalPages: result.totalPages,
+    );
   }
 
   Future<List<ForumThread>> fetchBoardThreads(ForumCategory category) async {
@@ -1070,21 +1104,22 @@ class ForumRepository {
     );
     // thread_new.php uses the wall stream for ordinary topics, while the table
     // above it still carries board-level sticky topics and ads. Do not parse the
-    // whole table as threads, because it also contains broader sticky levels
-    // that simple mode intentionally hides. Filtered listings fall back to the
-    // classic table when no wall stream is present.
+    // whole table as threads for ordinary boards, because it also contains
+    // broader sticky levels that simple mode intentionally hides.
     final wallThreads = _mergeThreadNewThreads(
       _boardThreadPageParser.parseDesktopStickyThreads(document, category),
       _boardThreadPageParser.parseWallThreads(document, category),
     );
     // A filtered listing (thread.php?fid-N-type-M.html) renders the classic
-    // table instead of the wall stream, so only there do we fall back to it.
-    // Ordinary board pages must keep the wall-only behaviour: their table also
-    // carries broader sticky levels and notices that simple mode hides on
-    // purpose.
-    final threads = wallThreads.isEmpty && filterUrl != null
+    // table instead of the wall stream, and that table holds BOTH the board
+    // stickies and the ordinary topics. Emptiness therefore cannot decide which
+    // projection to use: on a filtered page the table stickies already make
+    // `wallThreads` non-empty, which used to hide every ordinary topic and left
+    // the list with a single sticky row. The active filter decides instead.
+    final tableThreads = filterUrl != null && filterUrl.trim().isNotEmpty
         ? _boardThreadPageParser.parseDesktopThreads(document, category)
-        : wallThreads;
+        : const <ForumThread>[];
+    final threads = tableThreads.isNotEmpty ? tableThreads : wallThreads;
     if (threads.isNotEmpty) {
       final pages = _boardThreadPageParser.wallPages(document) ??
           _boardThreadPageParser.simplePages(document) ??

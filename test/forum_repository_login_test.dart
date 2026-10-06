@@ -64,6 +64,76 @@ void main() {
     expect(client.bytesPath, startsWith('ck.php?nowtime='));
   });
 
+  test('fetchBoardThreadPage reads the classic table for a filtered listing',
+      () async {
+    // Regression: `thread.php?fid-N-type-M.html` renders the classic table,
+    // which holds BOTH the board stickies and the ordinary topics. The sticky
+    // row alone made `wallThreads` non-empty, so the old
+    // `wallThreads.isEmpty && filterUrl != null` guard never fell back to the
+    // table and the list showed a single sticky instead of the whole board.
+    final client = _PathForumClient({
+      'thread.php?fid-128-type-3.html#c': '''
+        <html>
+          <body>
+            <table id="ajaxtable">
+              <tr class="tr3 t_one">
+                <td><img src="images/colorImagination/file/headtopic_1.gif"></td>
+                <td id="td_1">
+                  <h3><a href="read.php?tid-1.html" id="a_ajax_1">
+                    <b>置顶主题</b>
+                  </a></h3>
+                </td>
+                <td><a class="bl" href="u.php?action-show-uid-1.html">mod</a>
+                  <div>2026-10-01</div>
+                </td>
+                <td>1 / 10</td>
+                <td></td>
+              </tr>
+              <tr class="tr3 t_one">
+                <td><img src="images/colorImagination/thread/topiclock.gif"></td>
+                <td id="td_2">
+                  <h3><a href="read.php?tid-2.html" id="a_ajax_2">
+                    <b>普通主题一</b>
+                  </a></h3>
+                </td>
+                <td><a class="bl" href="u.php?action-show-uid-2.html">user</a>
+                  <div>2026-10-02</div>
+                </td>
+                <td>4 / 266</td>
+                <td></td>
+              </tr>
+              <tr class="tr3 t_one">
+                <td><img src="images/colorImagination/thread/topiclock.gif"></td>
+                <td id="td_3">
+                  <h3><a href="read.php?tid-3.html" id="a_ajax_3">
+                    <b>普通主题二</b>
+                  </a></h3>
+                </td>
+                <td><a class="bl" href="u.php?action-show-uid-3.html">user</a>
+                  <div>2026-10-03</div>
+                </td>
+                <td>5 / 1867</td>
+                <td></td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      ''',
+    });
+    final repository = ForumRepository(client: client);
+
+    final page = await repository.fetchBoardThreadPage(
+      ForumCategory(name: '同人音声', slug: 'fid-128', url: null),
+      filterUrl: 'https://south-plus.net/thread.php?fid-128-type-3.html#c',
+    );
+
+    expect(
+      page.threads.map((thread) => thread.title),
+      containsAll(<String>['置顶主题', '普通主题一', '普通主题二']),
+    );
+    expect(client.paths, contains('thread.php?fid-128-type-3.html#c'));
+  });
+
   test('fetchBoardThreadPage uses thread_new only and keeps sticky threads',
       () async {
     final client = _PathForumClient({
