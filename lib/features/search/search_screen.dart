@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/forum_models.dart';
 import '../../services/forum_repository.dart';
+import '../../services/search_history_store.dart';
 import '../../theme/app_theme.dart';
 import '../common/async_state_view.dart';
 import '../common/pagination_bar.dart';
@@ -19,10 +20,18 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _keyword = TextEditingController();
   final _scrollController = ScrollController();
+  final SearchHistoryStore _historyStore = SearchHistoryStore();
   Future<ForumThreadPage>? _future;
   String? _error;
   String _lastQuery = '';
   int _page = 1;
+  List<String> _history = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
 
   @override
   void dispose() {
@@ -31,7 +40,15 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  void _search() {
+  Future<void> _loadHistory() async {
+    final entries = await _historyStore.recent();
+    if (!mounted) return;
+    setState(() {
+      _history = entries;
+    });
+  }
+
+  Future<void> _search() async {
     final query = _keyword.text.trim();
     if (query.isEmpty) {
       setState(() {
@@ -47,6 +64,23 @@ class _SearchScreenState extends State<SearchScreen> {
       _page = 1;
       _future = widget.repository.searchThreads(query);
     });
+    await _historyStore.record(query);
+    await _loadHistory();
+  }
+
+  Future<void> _removeHistory(String keyword) async {
+    await _historyStore.remove(keyword);
+    await _loadHistory();
+  }
+
+  Future<void> _clearHistory() async {
+    await _historyStore.clear();
+    await _loadHistory();
+  }
+
+  void _searchKeyword(String keyword) {
+    _keyword.text = keyword;
+    _search();
   }
 
   /// phpwind search results are session bound, so a stale page link can expire
@@ -138,7 +172,18 @@ class _SearchScreenState extends State<SearchScreen> {
             Divider(height: 1, color: AppColors.border),
             Expanded(
               child: future == null
-                  ? const _SearchIntro()
+                  ? Column(
+                      children: [
+                        if (_history.isNotEmpty)
+                          _SearchHistoryPanel(
+                            keywords: _history,
+                            onSelect: _searchKeyword,
+                            onRemove: _removeHistory,
+                            onClear: _clearHistory,
+                          ),
+                        const Expanded(child: _SearchIntro()),
+                      ],
+                    )
                   : FutureBuilder<ForumThreadPage>(
                       future: future,
                       builder: (context, snapshot) {
@@ -187,6 +232,122 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchHistoryPanel extends StatelessWidget {
+  const _SearchHistoryPanel({
+    required this.keywords,
+    required this.onSelect,
+    required this.onRemove,
+    required this.onClear,
+  });
+
+  final List<String> keywords;
+  final ValueChanged<String> onSelect;
+  final ValueChanged<String> onRemove;
+  final Future<void> Function() onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('搜索记录', style: Theme.of(context).textTheme.titleSmall),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: onClear,
+                icon: const Icon(Icons.delete_sweep_outlined, size: 16),
+                label: const Text('清空'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textMuted,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final keyword in keywords)
+                _SearchHistoryChip(
+                  keyword: keyword,
+                  onTap: () => onSelect(keyword),
+                  onRemove: () => onRemove(keyword),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchHistoryChip extends StatelessWidget {
+  const _SearchHistoryChip({
+    required this.keyword,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  final String keyword;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.inkSoft,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.border, width: 0.8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 150),
+                child: Text(
+                  keyword,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.link,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+              InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: onRemove,
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.close,
+                    size: 14,
+                    color: AppColors.textFaint,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

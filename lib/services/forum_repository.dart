@@ -1015,6 +1015,7 @@ class ForumRepository {
   /// reached by following the link the result page printed.
   final Map<int, String> _searchPageHrefs = <int, String>{};
   String _searchKeyword = '';
+  String? _searchId;
 
   Future<ForumThreadPage> searchThreads(String keyword, {int page = 1}) async {
     final query = keyword.trim();
@@ -1023,14 +1024,25 @@ class ForumRepository {
     }
 
     if (page > 1) {
-      final href = query == _searchKeyword ? _searchPageHrefs[page] : null;
-      if (href == null) {
+      final sameSession = query == _searchKeyword;
+      final href = sameSession ? _searchPageHrefs[page] : null;
+      final id = sameSession ? _searchId : null;
+      // phpwind does not always spell every page out in the markup, so rebuild
+      // the link from the session id when the page link is missing.
+      final path = href != null
+          ? _urls.relativePath(_urls.absoluteUrl(href))
+          : (id != null && id.isNotEmpty
+              ? 'search.php?searchid=$id&page=$page'
+              : null);
+      if (path == null) {
         throw const ForumRepositoryException('这一页的搜索链接已失效，请重新搜索');
       }
-      final document = html_parser.parse(
-        await _client.get(_urls.relativePath(_urls.absoluteUrl(href))),
-      );
+      final document = html_parser.parse(await _client.get(path));
       final result = _searchResultParser.parsePage(document);
+      if (result.searchId != null && result.searchId!.isNotEmpty) {
+        _searchId = result.searchId;
+      }
+      _searchPageHrefs.addAll(result.pageHrefs);
       return ForumThreadPage(
         threads: result.threads,
         currentPage: page,
@@ -1061,6 +1073,7 @@ class ForumRepository {
         _urls.relativePath(_urls.absoluteUrl(action)), fields);
     final result = _searchResultParser.parsePage(html_parser.parse(response));
     _searchKeyword = query;
+    _searchId = result.searchId;
     _searchPageHrefs
       ..clear()
       ..addAll(result.pageHrefs);

@@ -10,6 +10,7 @@ class SearchResultPage {
     required this.currentPage,
     required this.totalPages,
     this.pageHrefs = const {},
+    this.searchId,
   });
 
   final List<ForumThread> threads;
@@ -22,6 +23,10 @@ class SearchResultPage {
   /// reliable way to reach page N is to follow the link the result page itself
   /// printed rather than guessing the query shape.
   final Map<int, String> pageHrefs;
+
+  /// Session id of this search, used to rebuild a page link when the page
+  /// markup did not spell one out.
+  final String? searchId;
 }
 
 class SearchResultParser {
@@ -35,9 +40,14 @@ class SearchResultParser {
     final hrefs = <int, String>{};
     for (final link in document.querySelectorAll('a[href]')) {
       final href = link.attributes['href'] ?? '';
-      if (!href.contains('search.php')) continue;
       final match = RegExp(r'[?&]page=(\d+)').firstMatch(href);
       if (match == null) continue;
+      // Search paging links are not always absolute or prefixed with
+      // `search.php`: phpwind also emits bare `?searchid=…&page=2`. Only skip
+      // paging that clearly belongs to another listing on the same page.
+      if (RegExp(r'(read|thread|forum|forumdisplay)\.php').hasMatch(href)) {
+        continue;
+      }
       final page = int.tryParse(match.group(1)!);
       if (page == null || page < 1) continue;
       hrefs.putIfAbsent(page, () => href);
@@ -61,11 +71,15 @@ class SearchResultParser {
     }
     if (total < current) total = current;
 
+    final searchId =
+        RegExp(r'searchid=(\d+)').firstMatch(document.outerHtml)?.group(1);
+
     return SearchResultPage(
       threads: parse(document),
       currentPage: current,
       totalPages: total,
       pageHrefs: hrefs,
+      searchId: searchId,
     );
   }
 

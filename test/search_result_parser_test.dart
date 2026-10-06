@@ -71,4 +71,40 @@ void main() {
     expect(page.pageHrefs.keys, [4]);
     expect(page.totalPages, 4);
   });
+
+  test('SearchResultParser.parsePage accepts relative search paging links', () {
+    // Regression: phpwind does not always prefix the page links with
+    // `search.php`; the old parser required that prefix, so the page bar showed
+    // up (total came from `Pages: x/y`) but every tap failed to resolve an href.
+    final document = html_parser.parse('''
+      <html>
+        <body>
+          <div class="pages">
+            Pages: 1/6
+            <a href="?searchid=778899&amp;page=2">2</a>
+            <a href="?searchid=778899&amp;page=6">6</a>
+          </div>
+        </body>
+      </html>
+    ''');
+
+    final page = parser.parsePage(document);
+
+    expect(page.totalPages, 6);
+    expect(page.pageHrefs[2], '?searchid=778899&page=2');
+    expect(page.pageHrefs[6], '?searchid=778899&page=6');
+    expect(page.searchId, '778899');
+  });
+
+  test('SearchResultParser.parsePage reads the search session id', () {
+    final document = html_parser.parse('''
+      <html>
+        <body>
+          <a href="search.php?searchid=4242&amp;page=3">3</a>
+        </body>
+      </html>
+    ''');
+
+    expect(parser.parsePage(document).searchId, '4242');
+  });
 }
