@@ -19,14 +19,40 @@ class SearchResultPage {
 
   /// Page number -> href, taken straight from the page markup.
   ///
-  /// phpwind search paging carries a session bound `searchid`, so the only
-  /// reliable way to reach page N is to follow the link the result page itself
-  /// printed rather than guessing the query shape.
+  /// phpwind search paging is session bound, so the only reliable way to reach
+  /// page N is to follow the link the result page itself printed rather than
+  /// guessing the query shape. On this forum the links are rewrite paths:
+  ///
+  ///     search.php?step-2-keyword-<kw>-sid-259906137-seekfid-all-page-3.html
   final Map<int, String> pageHrefs;
 
-  /// Session id of this search, used to rebuild a page link when the page
-  /// markup did not spell one out.
+  /// Session id of this search (`sid-…`), used to rebuild a page link when the
+  /// page markup did not spell one out.
   final String? searchId;
+
+  /// Href for [page].
+  ///
+  /// Prefers a link the page printed, then rewrites a sibling link's page token
+  /// (works for both `…-page-3.html` and `…&page=3`), and only then falls back
+  /// to the legacy `search.php?searchid=…&page=N` shape.
+  String? hrefFor(int page) {
+    final direct = pageHrefs[page];
+    if (direct != null) return direct;
+
+    for (final href in pageHrefs.values) {
+      final rewritten = href.replaceFirstMapped(
+        RegExp(r'(page[=-])\d+'),
+        (match) => '${match.group(1)}$page',
+      );
+      if (rewritten != href) return rewritten;
+    }
+
+    final id = searchId;
+    if (id != null && id.isNotEmpty) {
+      return 'search.php?searchid=$id&page=$page';
+    }
+    return null;
+  }
 }
 
 class SearchResultParser {
@@ -35,19 +61,24 @@ class SearchResultParser {
 
   final ForumUrlResolver urls;
 
+  /// Matches both paging shapes this forum emits:
+  ///
+  /// - rewrite path: `…-sid-123-seekfid-all-page-3.html`
+  /// - plain query: `…&page=3`
+  static final RegExp _pageToken = RegExp(r'page[=-](\d+)');
+
+  /// Pagination that belongs to another listing on the same page.
+  static final RegExp _otherListing =
+      RegExp(r'(read|thread|forum)[a-z_]*\.php');
+
   /// Parses threads together with the pagination projection.
   SearchResultPage parsePage(dom.Document document) {
     final hrefs = <int, String>{};
     for (final link in document.querySelectorAll('a[href]')) {
       final href = link.attributes['href'] ?? '';
-      final match = RegExp(r'[?&]page=(\d+)').firstMatch(href);
+      final match = _pageToken.firstMatch(href);
       if (match == null) continue;
-      // Search paging links are not always absolute or prefixed with
-      // `search.php`: phpwind also emits bare `?searchid=…&page=2`. Only skip
-      // paging that clearly belongs to another listing on the same page.
-      if (RegExp(r'(read|thread|forum|forumdisplay)\.php').hasMatch(href)) {
-        continue;
-      }
+      if (_otherListing.hasMatch(href)) continue;
       final page = int.tryParse(match.group(1)!);
       if (page == null || page < 1) continue;
       hrefs.putIfAbsent(page, () => href);
@@ -71,8 +102,11 @@ class SearchResultParser {
     }
     if (total < current) total = current;
 
-    final searchId =
-        RegExp(r'searchid=(\d+)').firstMatch(document.outerHtml)?.group(1);
+    // The session id appears as `sid-259906137` in the rewrite links and as
+    // `searchid=259906137` in the legacy form.
+    final searchId = RegExp(r'(?:searchid=|sid-)(\d+)')
+        .firstMatch(document.outerHtml)
+        ?.group(1);
 
     return SearchResultPage(
       threads: parse(document),
